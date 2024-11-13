@@ -1,0 +1,8 @@
+github.com/fogleman/fauxgl v0.0.0-20200818143847-27cddc103802 h1:5vdq0jOnV15v1NdZbAcU+dIJ22rFgwaieiFewPvnKCA=
+github.com/fogleman/fauxgl v0.0.0-20200818143847-27cddc103802/go.mod h1:7f7F8EvO8MWvDx9sIoloOfZBCKzlWuZV/h3TjpXOO3k=
+github.com/fogleman/simplify v0.0.0-20170216171241-d32f302d5046 h1:n3RPbpwXSFT0G8FYslzMUBDO09Ix8/dlqzvUkcJm4Jk=
+github.com/fogleman/simplify v0.0.0-20170216171241-d32f302d5046/go.mod h1:KDwyDqFmVUxUmo7tmqXtyaaJMdGon06y8BD2jmh84CQ=
+github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=
+github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
+github.com/hschendel/stl v1.0.4 h1:DXT5rkiXMUkbKw4Ndi1OYZ/a5SLR35TzxGj46p5Qyf8=
+github.com/hschendel/stl v1.0.4/go.mod h1:XQFFLKrq9YTaBpmouDui4JSaxMyAYkpD7elGSSj/y3M=

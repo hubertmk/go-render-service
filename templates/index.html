@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>No thumbnails, no party</title>
+    <style>
+        /* Basic styling for the drag-and-drop area */
+        #headline {
+            padding: 40px;
+            text-align: center;
+            margin: 20px auto;
+        }
+        #drop-zone {
+            border: 2px dashed #aaa;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            color: #888;
+            margin: 20px auto;
+            max-width: 400px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        #drop-zone.dragover {
+            background-color: #f0f8ff;
+            color: #333;
+        }
+        /* Hide the file input */
+        #file-input {
+            display: none;
+        }
+        /* Spinner overlay styling */
+        .spinner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            display: none; /* Hidden by default */
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #ddd;
+            border-top: 4px solid #888;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <h1 id="headline">thumbnails ❣️</h1>
+
+    <!-- Drag-and-drop area -->
+    <div id="drop-zone">Drag and drop your file here or click to upload</div>
+    <!-- Hidden file input -->
+    <input type="file" id="file-input">
+
+    <!-- Output area for feedback and rendered image -->
+    <div id="output"></div>
+
+    <!-- Spinner overlay -->
+    <div class="spinner-overlay" id="spinner-overlay">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+    let isProcessingComplete = false;
+    let isError = false;
+
+    // Handle file upload
+    function handleFileUpload(file) {
+        // Clear previous messages and outputs
+        document.getElementById("output").innerHTML = "";
+
+        // Show the spinner overlay
+        document.getElementById("spinner-overlay").style.display = "flex";
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        fetch("/upload", {
+            method: "POST",
+            body: formData
+        }).then(response => {
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status} ${response.statusText}`);
+            }
+            return response.text();
+        }).then(data => {
+            // Hide the spinner overlay
+            document.getElementById("spinner-overlay").style.display = "none";
+
+            // Check if the response indicates an already processed file
+            if (data.includes("Download the existing output here")) {
+                showRenderedImageAsCard(data); // Display the rendered image directly
+                return;
+            }
+
+            // Otherwise, parse job details and proceed with WebSocket connection
+            const [jobID, stlPath, outputPath] = data.split("|");
+            console.log(`File uploaded. Job ID: ${jobID}. Rendering...`);
+
+            // Start WebSocket connection for new files
+            openWebSocket(data, jobID);
+        }).catch(error => {
+            console.error("Error in upload or processing:", error);
+            document.getElementById("spinner-overlay").style.display = "none"; // Hide spinner on error
+            document.getElementById("output").innerHTML = "Upload failed. Please try again.";
+        });
+    }
+
+    function openWebSocket(data, jobID) {
+        const socket = new WebSocket("ws://localhost:8080/ws");
+
+        socket.onopen = () => {
+            console.log("WebSocket connection opened. Sending job details...");
+            socket.send(data);
+        };
+
+        socket.onmessage = event => {
+            const message = event.data;
+            console.log("Message received from server:", message);
+
+            // Hide the spinner overlay
+            document.getElementById("spinner-overlay").style.display = "none";
+
+            // Show error message if the rendering failed and prevent retry
+            if (message.includes("Failed to render file")) {
+                isError = true; // Set error flag
+                document.getElementById("output").innerHTML = message;
+                socket.close();
+                return;
+            }
+
+            // If rendering is complete, close the connection and show image
+            if (message.includes("Rendering complete!")) {
+                isProcessingComplete = true;
+                console.log("Rendering complete. Closing WebSocket connection.");
+                socket.close();
+                showRenderedImageAsCard(message); // Display the rendered image as a card
+            }
+        };
+
+        socket.onclose = event => {
+            console.log("WebSocket connection closed. Code:", event.code, "Reason:", event.reason);
+            // Retry only if no error occurred and rendering is not yet complete
+            if (!isProcessingComplete && !isError) {
+                console.warn("WebSocket closed prematurely. Retrying connection in 1 second...");
+                setTimeout(() => openWebSocket(data, jobID), 1000);
+            }
+        };
+
+        socket.onerror = error => {
+            console.error("WebSocket error:", error);
+            document.getElementById("spinner-overlay").style.display = "none"; // Hide spinner on error
+            document.getElementById("output").innerHTML = "An error occurred. Please try again.";
+            socket.close();
+        };
+    }
+
+function showRenderedImageAsCard(message) {
+    const match = message.match(/href='(.*?)'/);
+    if (match && match[1]) {
+        const imageUrl = match[1];
+
+        // Clear output before appending and center its contents
+        const outputElement = document.getElementById("output");
+        outputElement.innerHTML = "";
+        outputElement.style.textAlign = "center"; // Center contents within output
+
+        // Create the card container with minimal styling to fit the image size
+        const card = document.createElement("div");
+        card.style.border = "1px solid #ddd";
+        card.style.borderRadius = "8px";
+        card.style.padding = "10px";
+        card.style.boxShadow = "0px 4px 8px rgba(0, 0, 0, 0.1)";
+        card.style.backgroundColor = "#fff";
+        card.style.display = "inline-block"; // Wrap tightly around the image
+
+        // Create and style the image element
+        const img = document.createElement("img");
+        img.src = imageUrl;
+        img.alt = "Rendered 3D Model";
+        img.style.display = "block"; // Prevent inline spacing around the image
+        img.style.borderRadius = "4px";
+
+        // Append the image to the card and the card to output
+        card.appendChild(img);
+        outputElement.appendChild(card);
+    }
+}
+
+    // Drag-and-drop and click-to-upload functionality
+    const dropZone = document.getElementById("drop-zone");
+    const fileInput = document.getElementById("file-input");
+
+    // Trigger file input click on drop zone click
+    dropZone.addEventListener("click", (event) => {
+        event.stopPropagation();
+        fileInput.click();
+    });
+
+    // Handle file selection from file input
+    fileInput.addEventListener("change", (event) => {
+        const file = event.target.files[0];
+        if (file) handleFileUpload(file);
+    });
+
+    // Drag-and-drop event listeners
+    dropZone.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        dropZone.classList.add("dragover");
+    });
+
+    dropZone.addEventListener("dragleave", () => {
+        dropZone.classList.remove("dragover");
+    });
+
+    dropZone.addEventListener("drop", (event) => {
+        event.preventDefault();
+        dropZone.classList.remove("dragover");
+
+        const file = event.dataTransfer.files[0];
+        if (file) handleFileUpload(file);
+    });
+    </script>
+</body>
+</html>
+
