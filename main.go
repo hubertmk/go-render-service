@@ -59,7 +59,7 @@ func main() {
 	http.Handle("/output/", http.StripPrefix("/output/", http.FileServer(http.Dir("output"))))
 
 	log.Println("Server started at http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe("0.0.0.0:8080", nil))
 }
 
 // Helper Functions

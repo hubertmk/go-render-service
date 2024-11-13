@@ -121,54 +121,52 @@
         });
     }
 
-    function openWebSocket(data, jobID) {
-        const socket = new WebSocket("ws://localhost:8080/ws");
+function openWebSocket(data, jobID) {
+    const socketUrl = `ws://${window.location.hostname}:8080/ws`;
+    const socket = new WebSocket(socketUrl);
 
-        socket.onopen = () => {
-            console.log("WebSocket connection opened. Sending job details...");
-            socket.send(data);
-        };
+    socket.onopen = () => {
+        console.log("WebSocket connection opened. Sending job details...");
+        socket.send(data);
+    };
 
-        socket.onmessage = event => {
-            const message = event.data;
-            console.log("Message received from server:", message);
+    socket.onmessage = event => {
+        const message = event.data;
+        console.log("Message received from server:", message);
 
-            // Hide the spinner overlay
-            document.getElementById("spinner-overlay").style.display = "none";
+        document.getElementById("spinner-overlay").style.display = "none";
 
-            // Show error message if the rendering failed and prevent retry
-            if (message.includes("Failed to render file")) {
-                isError = true; // Set error flag
-                document.getElementById("output").innerHTML = message;
-                socket.close();
-                return;
-            }
-
-            // If rendering is complete, close the connection and show image
-            if (message.includes("Rendering complete!")) {
-                isProcessingComplete = true;
-                console.log("Rendering complete. Closing WebSocket connection.");
-                socket.close();
-                showRenderedImageAsCard(message); // Display the rendered image as a card
-            }
-        };
-
-        socket.onclose = event => {
-            console.log("WebSocket connection closed. Code:", event.code, "Reason:", event.reason);
-            // Retry only if no error occurred and rendering is not yet complete
-            if (!isProcessingComplete && !isError) {
-                console.warn("WebSocket closed prematurely. Retrying connection in 1 second...");
-                setTimeout(() => openWebSocket(data, jobID), 1000);
-            }
-        };
-
-        socket.onerror = error => {
-            console.error("WebSocket error:", error);
-            document.getElementById("spinner-overlay").style.display = "none"; // Hide spinner on error
-            document.getElementById("output").innerHTML = "An error occurred. Please try again.";
+        if (message.includes("Failed to render file")) {
+            isError = true;
+            document.getElementById("output").innerHTML = message;
             socket.close();
-        };
-    }
+            return;
+        }
+
+        if (message.includes("Rendering complete!")) {
+            isProcessingComplete = true;
+            console.log("Rendering complete. Closing WebSocket connection.");
+            socket.close();
+            showRenderedImageAsCard(message);
+        }
+    };
+
+    socket.onclose = event => {
+        console.log("WebSocket connection closed. Code:", event.code, "Reason:", event.reason);
+        if (!isProcessingComplete && !isError) {
+            console.warn("WebSocket closed prematurely. Retrying connection in 1 second...");
+            setTimeout(() => openWebSocket(data, jobID), 1000);
+        }
+    };
+
+    socket.onerror = error => {
+        console.error("WebSocket error:", error);
+        document.getElementById("spinner-overlay").style.display = "none";
+        document.getElementById("output").innerHTML = "An error occurred. Please try again.";
+        socket.close();
+    };
+}
+
 
 function showRenderedImageAsCard(message) {
     const match = message.match(/href='(.*?)'/);
